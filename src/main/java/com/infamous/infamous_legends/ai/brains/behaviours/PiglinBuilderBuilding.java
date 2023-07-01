@@ -17,6 +17,7 @@ import net.minecraft.world.entity.ai.memory.MemoryStatus;
 import net.minecraft.world.entity.ai.memory.WalkTarget;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
@@ -93,7 +94,9 @@ public class PiglinBuilderBuilding extends Behavior<PiglinBuilder> {
 
             BlockPos blockpos2 = template.getZeroPositionWithTransform(blockpos1, Mirror.NONE, this.rotation);
 
-            List<StructureTemplate.StructureBlockInfo> list = templateSettings.getRandomPalette(template.palettes, blockpos2).blocks();
+            List<StructureTemplate.StructureBlockInfo> list = templateSettings.getRandomPalette(template.palettes, blockpos2).blocks().stream().filter(info -> {
+                return !info.state.isAir() && !info.state.is(Blocks.STRUCTURE_VOID);
+            }).toList();
             if (step > list.size() - 1) {
                 workOver = true;
                 return;
@@ -137,5 +140,10 @@ public class PiglinBuilderBuilding extends Behavior<PiglinBuilder> {
 
     private boolean isReplaceable(BlockState blockState, ServerLevel level, PiglinBuilder mob) {
         return !blockState.is(BlockTags.FEATURES_CANNOT_REPLACE) && ForgeEventFactory.getMobGriefingEvent(level, mob);
+    }
+
+    @Override
+    protected boolean timedOut(long pGameTime) {
+        return false;
     }
 }
