@@ -1,7 +1,5 @@
 package com.infamous.infamous_legends.entities;
 
-import javax.annotation.Nullable;
-
 import com.google.common.collect.ImmutableList;
 import com.infamous.infamous_legends.ai.brains.PiglinBuilderAi;
 import com.infamous.infamous_legends.init.ItemInit;
@@ -13,7 +11,6 @@ import com.infamous.infamous_legends.utils.HandleLoopingSoundInstances;
 import com.infamous.infamous_legends.utils.MiscUtils;
 import com.infamous.infamous_legends.utils.PositionUtils;
 import com.mojang.serialization.Dynamic;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -23,13 +20,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.AnimationState;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.MobSpawnType;
-import net.minecraft.world.entity.SpawnGroupData;
+import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -45,13 +36,15 @@ import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
+import javax.annotation.Nullable;
+
 public class PiglinBuilder extends AbstractPiglin implements IHasCustomExplosion {
 
 	public AnimationState shootAnimationState = new AnimationState();
 	public int shootAnimationTick;
 	public final int shootAnimationLength = 60;
 	public final int shootAnimationActionPoint = 20;
-	
+
 	protected static final ImmutableList<SensorType<? extends Sensor<? super PiglinBuilder>>> SENSOR_TYPES = ImmutableList
 			.of(SensorTypeInit.CUSTOM_NEAREST_LIVING_ENTITIES.get(), SensorTypeInit.CUSTOM_NEAREST_PLAYERS.get(), SensorType.NEAREST_ITEMS,
 					SensorType.HURT_BY, SensorTypeInit.LEGENDS_PIGLIN_SPECIFIC_SENSOR.get());
@@ -63,7 +56,7 @@ public class PiglinBuilder extends AbstractPiglin implements IHasCustomExplosion
 			MemoryModuleType.WALK_TARGET, MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE, MemoryModuleType.ATTACK_TARGET,
 			MemoryModuleType.ATTACK_COOLING_DOWN, MemoryModuleType.INTERACTION_TARGET, MemoryModuleType.PATH,
 			MemoryModuleType.ANGRY_AT, MemoryModuleType.NEAREST_VISIBLE_NEMESIS, MemoryModuleType.HOME,
-			MemoryModuleTypeInit.NEARBY_ALLIES.get());
+			MemoryModuleTypeInit.NEARBY_ALLIES.get(), MemoryModuleTypeInit.WORK_POS.get());
 	   
 	public PiglinBuilder(EntityType<? extends PiglinBuilder> type, Level level) {
 		super(type, level);		
