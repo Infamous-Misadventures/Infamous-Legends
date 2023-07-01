@@ -35,7 +35,6 @@ public class PiglinBuilderBuilding extends Behavior<PiglinBuilder> {
     private static final Logger LOGGER = Logger.getLogger(InfamousLegends.MOD_ID);
     private final float speedMultiplier;
     private boolean workOver = false;
-    private BlockPos minPos;
     private BlockPos maxPos;
     private BlockPos currentBlockPos;
     private StructureTemplate template;
@@ -75,7 +74,6 @@ public class PiglinBuilderBuilding extends Behavior<PiglinBuilder> {
         BlockPos blockpos1 = new BlockPos(-vec3i.getX() / 2, 0, -vec3i.getZ() / 2);
         BlockPos blockpos2 = new BlockPos(vec3i.getX() / 2, vec3i.getY(), vec3i.getZ() / 2);
 
-        this.minPos = blockpos1;
         this.maxPos = blockpos2;
         this.rotation = rotation;
     }
@@ -89,17 +87,18 @@ public class PiglinBuilderBuilding extends Behavior<PiglinBuilder> {
         Brain<?> brain = mob.getBrain();
         Optional<GlobalPos> globalPos = brain.getMemory(MemoryModuleTypeInit.WORK_POS.get());
 
-        if (--this.tick < 0) {
-            if (globalPos.isPresent()) {
-                BlockPos blockpos1 = globalPos.get().pos().offset(-maxPos.getX(), 0, -maxPos.getZ());
 
-                BlockPos blockpos2 = template.getZeroPositionWithTransform(blockpos1, Mirror.NONE, this.rotation);
+        if (globalPos.isPresent()) {
+            BlockPos blockpos1 = globalPos.get().pos().offset(-maxPos.getX(), 0, -maxPos.getZ());
 
-                List<StructureTemplate.StructureBlockInfo> list = templateSettings.getRandomPalette(template.palettes, blockpos2).blocks();
-                if (step > list.size() - 1) {
-                    workOver = true;
-                }
+            BlockPos blockpos2 = template.getZeroPositionWithTransform(blockpos1, Mirror.NONE, this.rotation);
 
+            List<StructureTemplate.StructureBlockInfo> list = templateSettings.getRandomPalette(template.palettes, blockpos2).blocks();
+            if (step > list.size() - 1) {
+                workOver = true;
+                return;
+            }
+            if (this.currentBlockPos == null) {
                 StructureTemplate.StructureBlockInfo structureBlockInfo = list.get(step);
                 BlockPos origin = globalPos.get().pos().offset(structureBlockInfo.pos);
                 if (isReplaceable(level.getBlockState(origin), level, mob)) {
@@ -109,40 +108,34 @@ public class PiglinBuilderBuilding extends Behavior<PiglinBuilder> {
                 } else {
                     step += 1;
                 }
+            }
+            brain.setMemory(MemoryModuleType.WALK_TARGET, new WalkTarget(globalPos.get().pos(), this.speedMultiplier, 4));
 
+            if (--this.tick < 0) {
                 if (currentBlockPos != null) {
-                    if (mob.getNavigation().isDone()) {
-                        brain.setMemory(MemoryModuleType.WALK_TARGET, new WalkTarget(globalPos.get().pos(), this.speedMultiplier, 16));
-                    }
-
 
                     if (globalPos.get().pos().distSqr(mob.blockPosition()) < 32F) {
                         if (isReplaceable(level.getBlockState(currentBlockPos), level, mob)) {
                             if (!level.getBlockState(currentBlockPos).isAir() && level.getFluidState(currentBlockPos).isEmpty()) {
                                 level.levelEvent(2001, currentBlockPos, Block.getId(level.getBlockState(currentBlockPos)));
-
                             }
                             BlockState realState = blockState.mirror(templateSettings.getMirror()).rotate(templateSettings.getRotation());
 
                             Block.pushEntitiesUp(level.getBlockState(currentBlockPos), realState, level, currentBlockPos);
                             level.setBlock(currentBlockPos, realState, 3);
+                            currentBlockPos = null;
                         } else {
                             currentBlockPos = null;
                         }
                     }
                 }
+                this.tick = 4;
             }
-            this.tick = 3;
         }
     }
 
 
     private boolean isReplaceable(BlockState blockState, ServerLevel level, PiglinBuilder mob) {
         return !blockState.is(BlockTags.FEATURES_CANNOT_REPLACE) && ForgeEventFactory.getMobGriefingEvent(level, mob);
-    }
-
-    @Override
-    protected boolean timedOut(long pGameTime) {
-        return false;
     }
 }
