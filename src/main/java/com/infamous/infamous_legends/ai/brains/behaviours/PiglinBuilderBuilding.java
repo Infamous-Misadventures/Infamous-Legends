@@ -95,7 +95,7 @@ public class PiglinBuilderBuilding extends Behavior<PiglinBuilder> {
             BlockPos blockpos2 = template.getZeroPositionWithTransform(blockpos1, Mirror.NONE, this.rotation);
 
             List<StructureTemplate.StructureBlockInfo> list = templateSettings.getRandomPalette(template.palettes, blockpos2).blocks().stream().filter(info -> {
-                return !info.state.isAir() && !info.state.is(Blocks.STRUCTURE_VOID);
+                return !info.state.is(Blocks.STRUCTURE_VOID) && !(mob.level.getBlockState(globalPos.get().pos().offset(info.pos)).isAir() && info.state.isAir());
             }).toList();
             if (step > list.size() - 1) {
                 workOver = true;
