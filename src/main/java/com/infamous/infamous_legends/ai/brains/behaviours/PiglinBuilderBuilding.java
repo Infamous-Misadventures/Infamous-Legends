@@ -9,6 +9,7 @@ import net.minecraft.core.GlobalPos;
 import net.minecraft.core.Vec3i;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.behavior.Behavior;
@@ -16,10 +17,7 @@ import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.ai.memory.MemoryStatus;
 import net.minecraft.world.entity.ai.memory.WalkTarget;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.Mirror;
-import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
@@ -119,8 +117,10 @@ public class PiglinBuilderBuilding extends Behavior<PiglinBuilder> {
 
                     if (globalPos.get().pos().distSqr(mob.blockPosition()) < 32F) {
                         if (isReplaceable(level.getBlockState(currentBlockPos), level, mob)) {
-                            if (!level.getBlockState(currentBlockPos).isAir() && level.getFluidState(currentBlockPos).isEmpty()) {
-                                level.levelEvent(2001, currentBlockPos, Block.getId(level.getBlockState(currentBlockPos)));
+                            //sounds!
+                            if (blockState != null && !blockState.isAir() && blockState.getFluidState().isEmpty()) {
+                                SoundType soundType = blockState.getSoundType();
+                                mob.level.playSound(null, currentBlockPos, soundType.getPlaceSound(), SoundSource.BLOCKS, soundType.getVolume(), blockState.getSoundType().getPitch());
                             }
                             BlockState realState = blockState.mirror(templateSettings.getMirror()).rotate(templateSettings.getRotation());
 
