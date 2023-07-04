@@ -29,6 +29,6 @@ public class MemoryModuleTypeInit {
 	public static final RegistryObject<MemoryModuleType<List<LivingEntity>>> NEARBY_ALLIES = MEMORY_MODULE_TYPES.register("nearby_allies",
 			() -> new MemoryModuleType<>(Optional.empty()));
 	public static final RegistryObject<MemoryModuleType<GlobalPos>> WORK_POS = MEMORY_MODULE_TYPES.register("work_pos",
-			() -> new MemoryModuleType<>(Optional.empty()));
+			() -> new MemoryModuleType<>(Optional.of(GlobalPos.CODEC)));
 }
 

@@ -13,11 +13,11 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.behavior.Behavior;
-import net.minecraft.world.entity.ai.memory.MemoryModuleType;
-import net.minecraft.world.entity.ai.memory.MemoryStatus;
-import net.minecraft.world.entity.ai.memory.WalkTarget;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.block.*;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Mirror;
+import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
@@ -28,6 +28,8 @@ import net.minecraftforge.event.ForgeEventFactory;
 import java.util.List;
 import java.util.Optional;
 import java.util.logging.Logger;
+
+import static net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.processBlockInfos;
 
 public class PiglinBuilderBuilding extends Behavior<PiglinBuilder> {
     private static final String[] STRUCTURE_LOCATION_PORTALS = new String[]{"ruined_portal/portal_1", "ruined_portal/portal_2", "ruined_portal/portal_3", "ruined_portal/portal_4", "ruined_portal/portal_5", "ruined_portal/portal_6", "ruined_portal/portal_7", "ruined_portal/portal_8", "ruined_portal/portal_9", "ruined_portal/portal_10"};
@@ -45,13 +47,19 @@ public class PiglinBuilderBuilding extends Behavior<PiglinBuilder> {
     private int tick = 3;
 
     public PiglinBuilderBuilding(float p_275357_) {
-        super(ImmutableMap.of(MemoryModuleTypeInit.WORK_POS.get(), MemoryStatus.VALUE_PRESENT), 2400);
+        super(ImmutableMap.of(), 2400);
         this.speedMultiplier = p_275357_;
     }
 
 
+    @Override
+    protected boolean checkExtraStartConditions(ServerLevel pLevel, PiglinBuilder pOwner) {
+        Brain<?> brain = pOwner.getBrain();
+        return pOwner.getTarget() == null && brain.getMemory(MemoryModuleTypeInit.WORK_POS.get()).isPresent();
+    }
+
     protected boolean canStillUse(ServerLevel level, PiglinBuilder piglinBuilder, long p_147393_) {
-        return !workOver && ForgeEventFactory.getMobGriefingEvent(level, piglinBuilder);
+        return piglinBuilder.getTarget() == null && !workOver && ForgeEventFactory.getMobGriefingEvent(level, piglinBuilder);
     }
 
     protected void start(ServerLevel level, PiglinBuilder piglinBuilder, long p_147401_) {
@@ -60,7 +68,17 @@ public class PiglinBuilderBuilding extends Behavior<PiglinBuilder> {
         GlobalPos globalPos = brain.getMemory(MemoryModuleTypeInit.WORK_POS.get()).get();
         int i = piglinBuilder.getRandom().nextInt(STRUCTURE_LOCATION_PORTALS.length);
         StructureTemplateManager structuretemplatemanager = level.getLevel().getServer().getStructureManager();
-        StructureTemplate structuretemplate = structuretemplatemanager.getOrCreate(ResourceLocation.tryParse(STRUCTURE_LOCATION_PORTALS[i]));
+
+        ResourceLocation resourceLocation = ResourceLocation.tryParse(STRUCTURE_LOCATION_PORTALS[i]);
+
+
+        if (piglinBuilder.getBuildingStructureName() != null) {
+            resourceLocation = piglinBuilder.getBuildingStructureName();
+            this.step = piglinBuilder.getBuildingStep();
+        } else {
+            piglinBuilder.setBuildingStructureName(resourceLocation);
+        }
+        StructureTemplate structuretemplate = structuretemplatemanager.getOrCreate(resourceLocation);
 
         this.template = structuretemplate;
         Rotation rotation = Rotation.getRandom(piglinBuilder.getRandom());
@@ -79,7 +97,12 @@ public class PiglinBuilderBuilding extends Behavior<PiglinBuilder> {
 
     protected void stop(ServerLevel p_217118_, PiglinBuilder p_217119_, long p_217120_) {
         Brain<?> brain = p_217119_.getBrain();
-        brain.eraseMemory(MemoryModuleTypeInit.WORK_POS.get());
+
+        if (this.workOver) {
+            brain.eraseMemory(MemoryModuleTypeInit.WORK_POS.get());
+            p_217119_.setBuildingStructureName(null);
+            p_217119_.setBuildingStep(0);
+        }
     }
 
     protected void tick(ServerLevel level, PiglinBuilder mob, long p_147405_) {
@@ -92,16 +115,16 @@ public class PiglinBuilderBuilding extends Behavior<PiglinBuilder> {
 
             BlockPos blockpos2 = template.getZeroPositionWithTransform(blockpos1, Mirror.NONE, this.rotation);
 
-            List<StructureTemplate.StructureBlockInfo> list = templateSettings.getRandomPalette(template.palettes, blockpos2).blocks().stream().filter(info -> {
-                return !info.state.is(Blocks.STRUCTURE_VOID) && !(mob.level.getBlockState(globalPos.get().pos().offset(info.pos)).isAir() && info.state.isAir());
-            }).toList();
-            if (step > list.size() - 1) {
+            List<StructureTemplate.StructureBlockInfo> list = templateSettings.getRandomPalette(template.palettes, blockpos2).blocks();
+
+            List<StructureTemplate.StructureBlockInfo> list2 = processBlockInfos(level, blockpos2, blockpos2, this.templateSettings, list, this.template).stream().filter(info -> !(mob.level.getBlockState(globalPos.get().pos().offset(info.pos)).isAir() && info.state.isAir())).toList();
+            if (step > list2.size() - 1) {
                 workOver = true;
                 return;
             }
             if (this.currentBlockPos == null) {
-                StructureTemplate.StructureBlockInfo structureBlockInfo = list.get(step);
-                BlockPos origin = globalPos.get().pos().offset(structureBlockInfo.pos);
+                StructureTemplate.StructureBlockInfo structureBlockInfo = list2.get(step);
+                BlockPos origin = structureBlockInfo.pos;
                 if (isReplaceable(level.getBlockState(origin), level, mob)) {
                     blockState = structureBlockInfo.state;
                     currentBlockPos = origin;
@@ -110,22 +133,22 @@ public class PiglinBuilderBuilding extends Behavior<PiglinBuilder> {
                     step += 1;
                 }
             }
-            brain.setMemory(MemoryModuleType.WALK_TARGET, new WalkTarget(globalPos.get().pos(), this.speedMultiplier, 4));
+            mob.getNavigation().moveTo(globalPos.get().pos().getX(), globalPos.get().pos().getY(), globalPos.get().pos().getZ(), this.speedMultiplier);
 
             if (--this.tick < 0) {
                 if (currentBlockPos != null) {
 
                     if (globalPos.get().pos().distSqr(mob.blockPosition()) < 32F) {
                         if (isReplaceable(level.getBlockState(currentBlockPos), level, mob)) {
-                            //sounds!
                             if (blockState != null && !blockState.isAir() && blockState.getFluidState().isEmpty()) {
                                 SoundType soundType = blockState.getSoundType();
-                                mob.level.playSound(null, currentBlockPos, soundType.getPlaceSound(), SoundSource.BLOCKS, soundType.getVolume(), blockState.getSoundType().getPitch());
+                                level.playSound(null, currentBlockPos, soundType.getPlaceSound(), SoundSource.BLOCKS, soundType.getVolume(), blockState.getSoundType().getPitch());
                             }
                             BlockState realState = blockState.mirror(templateSettings.getMirror()).rotate(templateSettings.getRotation());
 
                             Block.pushEntitiesUp(level.getBlockState(currentBlockPos), realState, level, currentBlockPos);
                             level.setBlock(currentBlockPos, realState, 3);
+
                             currentBlockPos = null;
                         } else {
                             currentBlockPos = null;
@@ -133,8 +156,12 @@ public class PiglinBuilderBuilding extends Behavior<PiglinBuilder> {
                     }
                 }
                 this.tick = 4;
+
             }
+            mob.getNavigation().moveTo(globalPos.get().pos().getX(), globalPos.get().pos().getY(), globalPos.get().pos().getZ(), this.speedMultiplier);
+
         }
+        mob.setBuildingStep(this.step);
     }
 
 

@@ -5,7 +5,6 @@ import com.google.common.collect.ImmutableSet;
 import com.infamous.infamous_legends.ai.brains.behaviours.*;
 import com.infamous.infamous_legends.ai.brains.sensors.CustomSensor;
 import com.infamous.infamous_legends.entities.PiglinBuilder;
-import com.infamous.infamous_legends.init.MemoryModuleTypeInit;
 import com.infamous.infamous_legends.init.TagInit;
 import com.infamous.infamous_legends.utils.BrainUtils;
 import com.mojang.datafixers.util.Pair;
@@ -27,7 +26,6 @@ public class PiglinBuilderAi {
 		  initCoreActivity(p_35100_, p_35101_);
 		  initIdleActivity(p_35100_, p_35101_);
 		  initFightActivity(p_35100_, p_35101_);
-		  initWorkActivity(p_35100_, p_35101_);
 		  p_35101_.setCoreActivities(ImmutableSet.of(Activity.CORE));
 		  p_35101_.setDefaultActivity(Activity.IDLE);
 		  p_35101_.useDefaultActivity();
@@ -44,11 +42,7 @@ public class PiglinBuilderAi {
 	}
 
 	private static void initIdleActivity(PiglinBuilder p_35120_, Brain<PiglinBuilder> p_35121_) {
-		p_35121_.addActivity(Activity.IDLE, 10, ImmutableList.of(new StartAttacking<>(PiglinBuilderAi::findNearestValidAttackTarget), createIdleLookBehaviors(), createIdleMovementBehaviors(), new SetLookAndInteract(EntityType.PLAYER, 4)));
-	}
-
-	private static void initWorkActivity(PiglinBuilder p_35125_, Brain<PiglinBuilder> p_35126_) {
-		p_35126_.addActivityAndRemoveMemoryWhenStopped(Activity.WORK, 10, ImmutableList.of(new PiglinBuilderBuilding(0.9F)), MemoryModuleTypeInit.WORK_POS.get());
+		p_35121_.addActivity(Activity.IDLE, 10, ImmutableList.of(new StartAttacking<>(PiglinBuilderAi::findNearestValidAttackTarget), new PiglinBuilderBuilding(0.9F), createIdleLookBehaviors(), createIdleMovementBehaviors(), new SetLookAndInteract(EntityType.PLAYER, 4)));
 	}
 
 	private static void initFightActivity(PiglinBuilder p_35125_, Brain<PiglinBuilder> p_35126_) {
@@ -68,7 +62,7 @@ public class PiglinBuilderAi {
 	public static void updateActivity(PiglinBuilder p_35110_) {
 		Brain<PiglinBuilder> brain = p_35110_.getBrain();
 		Activity activity = brain.getActiveNonCoreActivity().orElse((Activity) null);
-		brain.setActiveActivityToFirstValid(ImmutableList.of(Activity.FIGHT, Activity.WORK, Activity.IDLE));
+		brain.setActiveActivityToFirstValid(ImmutableList.of(Activity.FIGHT, Activity.IDLE));
 		Activity activity1 = brain.getActiveNonCoreActivity().orElse((Activity) null);
 	      if (activity != activity1) {
 	         playActivitySound(p_35110_);
