@@ -1,9 +1,11 @@
 package com.infamous.infamous_legends.ai.brains.behaviours;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.infamous.infamous_legends.InfamousLegends;
 import com.infamous.infamous_legends.entities.PiglinBuilder;
 import com.infamous.infamous_legends.init.MemoryModuleTypeInit;
+import com.mojang.datafixers.util.Pair;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.Vec3i;
@@ -12,13 +14,11 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.world.Clearable;
 import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.behavior.Behavior;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Mirror;
-import net.minecraft.world.level.block.Rotation;
-import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -121,7 +121,10 @@ public class PiglinBuilderBuilding extends Behavior<PiglinBuilder> {
 
             List<StructureTemplate.StructureBlockInfo> list = templateSettings.getRandomPalette(template.palettes, blockpos2).blocks();
 
-            List<StructureTemplate.StructureBlockInfo> list2 = processBlockInfos(level, blockpos2, blockpos2, this.templateSettings, list, this.template).stream().filter(info -> !(mob.level.getBlockState(globalPos.get().pos().offset(info.pos)).isAir() && info.state.isAir())).toList();
+            List<StructureTemplate.StructureBlockInfo> list2 = processBlockInfos(level, blockpos2, blockpos2, this.templateSettings, list, this.template).stream().filter(info -> !info.state.is(Blocks.JIGSAW) && (!(mob.level.getBlockState(globalPos.get().pos().offset(info.pos)).isAir() && info.state.isAir())) || compoundTag != null).toList();
+            List<Pair<BlockPos, CompoundTag>> list3 = Lists.newArrayListWithCapacity(list.size());
+
+
             if (step > list2.size() - 1) {
                 workOver = true;
                 return;
@@ -152,15 +155,44 @@ public class PiglinBuilderBuilding extends Behavior<PiglinBuilder> {
                             BlockState realState = blockState.mirror(templateSettings.getMirror()).rotate(templateSettings.getRotation());
 
                             Block.pushEntitiesUp(level.getBlockState(currentBlockPos), realState, level, currentBlockPos);
-                            level.setBlock(currentBlockPos, realState, 3);
-                            if (compoundTag != null) {
-                                BlockEntity blockentity1 = level.getBlockEntity(currentBlockPos);
-                                if (blockentity1 != null) {
-                                    if (blockentity1 instanceof RandomizableContainerBlockEntity) {
-                                        compoundTag.putLong("LootTableSeed", level.random.nextLong());
-                                    }
 
-                                    blockentity1.load(compoundTag);
+                            if (compoundTag != null) {
+                                BlockEntity blockentity = level.getBlockEntity(currentBlockPos);
+                                Clearable.tryClear(blockentity);
+                                level.setBlock(currentBlockPos, Blocks.BARRIER.defaultBlockState(), 20);
+                            }
+
+                            if (level.setBlock(currentBlockPos, realState, 3)) {
+                                list3.add(Pair.of(currentBlockPos, compoundTag));
+                                if (compoundTag != null) {
+                                    BlockEntity blockentity1 = level.getBlockEntity(currentBlockPos);
+
+                                    if (blockentity1 != null) {
+                                        if (blockentity1 instanceof RandomizableContainerBlockEntity) {
+                                            compoundTag.putLong("LootTableSeed", level.random.nextLong());
+                                        }
+
+                                        blockentity1.load(compoundTag);
+                                        blockentity1.setChanged();
+                                    }
+                                }
+
+                                for (Pair<BlockPos, CompoundTag> pair : list3) {
+                                    BlockPos blockpos4 = pair.getFirst();
+                                    BlockState blockstate2 = level.getBlockState(blockpos4);
+                                    BlockState blockstate3 = Block.updateFromNeighbourShapes(blockstate2, level, blockpos4);
+                                    if (blockstate2 != blockstate3) {
+                                        level.setBlock(blockpos4, blockstate3, 3 & -2 | 16);
+                                    }
+                                    level.blockUpdated(blockpos4, blockstate3.getBlock());
+
+
+                                    if (pair.getSecond() != null) {
+                                        BlockEntity blockentity2 = level.getBlockEntity(blockpos4);
+                                        if (blockentity2 != null) {
+                                            blockentity2.setChanged();
+                                        }
+                                    }
                                 }
                             }
                             currentBlockPos = null;
