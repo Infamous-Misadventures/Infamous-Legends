@@ -1,86 +1,69 @@
 package com.infamous.infamous_legends.ai.brains;
 
-import java.util.Optional;
-
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import com.infamous.infamous_legends.ai.brains.behaviours.InteractWithTag;
-import com.infamous.infamous_legends.ai.brains.behaviours.LookAtAttackTarget;
-import com.infamous.infamous_legends.ai.brains.behaviours.PiglinBuilderShootAttack;
-import com.infamous.infamous_legends.ai.brains.behaviours.StopAtDistanceSetWalkTargetFromAttackTargetIfTargetOutOfReach;
+import com.infamous.infamous_legends.ai.brains.behaviours.*;
 import com.infamous.infamous_legends.ai.brains.sensors.CustomSensor;
 import com.infamous.infamous_legends.entities.PiglinBuilder;
 import com.infamous.infamous_legends.init.TagInit;
 import com.infamous.infamous_legends.utils.BrainUtils;
 import com.mojang.datafixers.util.Pair;
-
 import net.minecraft.core.GlobalPos;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.ai.behavior.BehaviorUtils;
-import net.minecraft.world.entity.ai.behavior.DoNothing;
-import net.minecraft.world.entity.ai.behavior.InteractWithDoor;
-import net.minecraft.world.entity.ai.behavior.LookAtTargetSink;
-import net.minecraft.world.entity.ai.behavior.MoveToTargetSink;
-import net.minecraft.world.entity.ai.behavior.RandomStroll;
-import net.minecraft.world.entity.ai.behavior.RunOne;
-import net.minecraft.world.entity.ai.behavior.SetEntityLookTarget;
-import net.minecraft.world.entity.ai.behavior.SetLookAndInteract;
-import net.minecraft.world.entity.ai.behavior.StartAttacking;
-import net.minecraft.world.entity.ai.behavior.StopAttackingIfTargetInvalid;
-import net.minecraft.world.entity.ai.behavior.StopBeingAngryIfTargetDead;
-import net.minecraft.world.entity.ai.behavior.StrollAroundPoi;
-import net.minecraft.world.entity.ai.behavior.StrollToPoi;
+import net.minecraft.world.entity.ai.behavior.*;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.monster.piglin.AbstractPiglin;
 import net.minecraft.world.entity.schedule.Activity;
 
+import java.util.Optional;
+
 public class PiglinBuilderAi {
 
 	  public static Brain<?> makeBrain(PiglinBuilder p_35100_, Brain<PiglinBuilder> p_35101_) {
-	      initCoreActivity(p_35100_, p_35101_);
-	      initIdleActivity(p_35100_, p_35101_);
-	      initFightActivity(p_35100_, p_35101_);
-	      p_35101_.setCoreActivities(ImmutableSet.of(Activity.CORE));
-	      p_35101_.setDefaultActivity(Activity.IDLE);
-	      p_35101_.useDefaultActivity();
-	      return p_35101_;
-	   }
+		  initCoreActivity(p_35100_, p_35101_);
+		  initIdleActivity(p_35100_, p_35101_);
+		  initFightActivity(p_35100_, p_35101_);
+		  p_35101_.setCoreActivities(ImmutableSet.of(Activity.CORE));
+		  p_35101_.setDefaultActivity(Activity.IDLE);
+		  p_35101_.useDefaultActivity();
+		  return p_35101_;
+	  }
 
-	   public static void initMemories(PiglinBuilder p_35095_) {
-	      GlobalPos globalpos = GlobalPos.of(p_35095_.level.dimension(), p_35095_.blockPosition());
-	      p_35095_.getBrain().setMemory(MemoryModuleType.HOME, globalpos);
-	   }
+	public static void initMemories(PiglinBuilder p_35095_) {
+		GlobalPos globalpos = GlobalPos.of(p_35095_.level.dimension(), p_35095_.blockPosition());
+		p_35095_.getBrain().setMemory(MemoryModuleType.HOME, globalpos);
+	}
 
-	   private static void initCoreActivity(PiglinBuilder p_35112_, Brain<PiglinBuilder> p_35113_) {
-	      p_35113_.addActivity(Activity.CORE, 0, ImmutableList.of(new LookAtTargetSink(45, 90), new MoveToTargetSink(), new InteractWithDoor(), new StopBeingAngryIfTargetDead<>()));
-	   }
+	private static void initCoreActivity(PiglinBuilder p_35112_, Brain<PiglinBuilder> p_35113_) {
+		p_35113_.addActivity(Activity.CORE, 0, ImmutableList.of(new LookAtTargetSink(45, 90), new MoveToTargetSink(), new InteractWithDoor(), new StopBeingAngryIfTargetDead<>()));
+	}
 
-	   private static void initIdleActivity(PiglinBuilder p_35120_, Brain<PiglinBuilder> p_35121_) {
-	      p_35121_.addActivity(Activity.IDLE, 10, ImmutableList.of(new StartAttacking<>(PiglinBuilderAi::findNearestValidAttackTarget), createIdleLookBehaviors(), createIdleMovementBehaviors(), new SetLookAndInteract(EntityType.PLAYER, 4)));
-	   }
+	private static void initIdleActivity(PiglinBuilder p_35120_, Brain<PiglinBuilder> p_35121_) {
+		p_35121_.addActivity(Activity.IDLE, 10, ImmutableList.of(new StartAttacking<>(PiglinBuilderAi::findNearestValidAttackTarget), new PiglinBuilderBuilding(0.9F), createIdleLookBehaviors(), createIdleMovementBehaviors(), new SetLookAndInteract(EntityType.PLAYER, 4)));
+	}
 
-	   private static void initFightActivity(PiglinBuilder p_35125_, Brain<PiglinBuilder> p_35126_) {
-		      p_35126_.addActivityAndRemoveMemoryWhenStopped(Activity.FIGHT, 10, ImmutableList.of(new StopAttackingIfTargetInvalid<>((p_35118_) -> {
-		         return !isNearestValidAttackTarget(p_35125_, p_35118_);
-		      }), new StopAtDistanceSetWalkTargetFromAttackTargetIfTargetOutOfReach(1.0F, 10), new PiglinBuilderShootAttack(60), new LookAtAttackTarget()), MemoryModuleType.ATTACK_TARGET);
-		   }
+	private static void initFightActivity(PiglinBuilder p_35125_, Brain<PiglinBuilder> p_35126_) {
+		p_35126_.addActivityAndRemoveMemoryWhenStopped(Activity.FIGHT, 10, ImmutableList.of(new StopAttackingIfTargetInvalid<>((p_35118_) -> {
+			return !isNearestValidAttackTarget(p_35125_, p_35118_);
+		}), new StopAtDistanceSetWalkTargetFromAttackTargetIfTargetOutOfReach(1.0F, 10), new PiglinBuilderShootAttack(60), new LookAtAttackTarget()), MemoryModuleType.ATTACK_TARGET);
+	}
 
-	   private static RunOne<PiglinBuilder> createIdleLookBehaviors() {
-		      return new RunOne<>(ImmutableList.of(Pair.of(new SetEntityLookTarget(EntityType.PLAYER, 8.0F), 1), Pair.of(new SetEntityLookTarget(TagInit.EntityTypes.PIGLIN_ALLIES, 8.0F), 1), Pair.of(new SetEntityLookTarget(8.0F), 1), Pair.of(new DoNothing(30, 60), 1)));
-		   }
+	private static RunOne<PiglinBuilder> createIdleLookBehaviors() {
+		return new RunOne<>(ImmutableList.of(Pair.of(new SetEntityLookTarget(EntityType.PLAYER, 8.0F), 1), Pair.of(new SetEntityLookTarget(TagInit.EntityTypes.PIGLIN_ALLIES, 8.0F), 1), Pair.of(new SetEntityLookTarget(8.0F), 1), Pair.of(new DoNothing(30, 60), 1)));
+	}
 
-		   private static RunOne<PiglinBuilder> createIdleMovementBehaviors() {
-		      return new RunOne<>(ImmutableList.of(Pair.of(new RandomStroll(0.6F), 2), Pair.of(InteractWithTag.of(TagInit.EntityTypes.PIGLIN_ALLIES, 8, MemoryModuleType.INTERACTION_TARGET, 0.6F, 2), 2), Pair.of(new StrollToPoi(MemoryModuleType.HOME, 0.6F, 2, 100), 2), Pair.of(new StrollAroundPoi(MemoryModuleType.HOME, 0.6F, 5), 2), Pair.of(new DoNothing(30, 60), 1)));
-		   }
+	private static RunOne<PiglinBuilder> createIdleMovementBehaviors() {
+		return new RunOne<>(ImmutableList.of(Pair.of(new RandomStroll(0.6F), 2), Pair.of(InteractWithTag.of(TagInit.EntityTypes.PIGLIN_ALLIES, 8, MemoryModuleType.INTERACTION_TARGET, 0.6F, 2), 2), Pair.of(new StrollToPoi(MemoryModuleType.HOME, 0.6F, 2, 100), 2), Pair.of(new StrollAroundPoi(MemoryModuleType.HOME, 0.6F, 5), 2), Pair.of(new DoNothing(30, 60), 1)));
+	}
 
-	   public static void updateActivity(PiglinBuilder p_35110_) {
-	      Brain<PiglinBuilder> brain = p_35110_.getBrain();
-	      Activity activity = brain.getActiveNonCoreActivity().orElse((Activity)null);
-	      brain.setActiveActivityToFirstValid(ImmutableList.of(Activity.FIGHT, Activity.IDLE));
-	      Activity activity1 = brain.getActiveNonCoreActivity().orElse((Activity)null);
+	public static void updateActivity(PiglinBuilder p_35110_) {
+		Brain<PiglinBuilder> brain = p_35110_.getBrain();
+		Activity activity = brain.getActiveNonCoreActivity().orElse((Activity) null);
+		brain.setActiveActivityToFirstValid(ImmutableList.of(Activity.FIGHT, Activity.IDLE));
+		Activity activity1 = brain.getActiveNonCoreActivity().orElse((Activity) null);
 	      if (activity != activity1) {
 	         playActivitySound(p_35110_);
 	      }

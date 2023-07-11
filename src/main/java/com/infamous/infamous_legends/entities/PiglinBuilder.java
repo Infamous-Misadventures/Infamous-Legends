@@ -1,7 +1,5 @@
 package com.infamous.infamous_legends.entities;
 
-import javax.annotation.Nullable;
-
 import com.google.common.collect.ImmutableList;
 import com.infamous.infamous_legends.ai.brains.PiglinBuilderAi;
 import com.infamous.infamous_legends.init.ItemInit;
@@ -13,23 +11,17 @@ import com.infamous.infamous_legends.utils.HandleLoopingSoundInstances;
 import com.infamous.infamous_legends.utils.MiscUtils;
 import com.infamous.infamous_legends.utils.PositionUtils;
 import com.mojang.serialization.Dynamic;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.AnimationState;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.MobSpawnType;
-import net.minecraft.world.entity.SpawnGroupData;
+import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -45,13 +37,18 @@ import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
+import javax.annotation.Nullable;
+
 public class PiglinBuilder extends AbstractPiglin implements IHasCustomExplosion {
 
 	public AnimationState shootAnimationState = new AnimationState();
 	public int shootAnimationTick;
 	public final int shootAnimationLength = 60;
 	public final int shootAnimationActionPoint = 20;
-	
+
+	private ResourceLocation buildingStructureName;
+	private int buildingStep;
+
 	protected static final ImmutableList<SensorType<? extends Sensor<? super PiglinBuilder>>> SENSOR_TYPES = ImmutableList
 			.of(SensorTypeInit.CUSTOM_NEAREST_LIVING_ENTITIES.get(), SensorTypeInit.CUSTOM_NEAREST_PLAYERS.get(), SensorType.NEAREST_ITEMS,
 					SensorType.HURT_BY, SensorTypeInit.LEGENDS_PIGLIN_SPECIFIC_SENSOR.get());
@@ -63,16 +60,52 @@ public class PiglinBuilder extends AbstractPiglin implements IHasCustomExplosion
 			MemoryModuleType.WALK_TARGET, MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE, MemoryModuleType.ATTACK_TARGET,
 			MemoryModuleType.ATTACK_COOLING_DOWN, MemoryModuleType.INTERACTION_TARGET, MemoryModuleType.PATH,
 			MemoryModuleType.ANGRY_AT, MemoryModuleType.NEAREST_VISIBLE_NEMESIS, MemoryModuleType.HOME,
-			MemoryModuleTypeInit.NEARBY_ALLIES.get());
-	   
+			MemoryModuleTypeInit.NEARBY_ALLIES.get(), MemoryModuleTypeInit.WORK_POS.get());
+
 	public PiglinBuilder(EntityType<? extends PiglinBuilder> type, Level level) {
-		super(type, level);		
+		super(type, level);
 		this.xpReward = 10;
 	}
-	
-	   @Override
+
+	public int getBuildingStep() {
+		return buildingStep;
+	}
+
+	public void setBuildingStep(int buildingStep) {
+		this.buildingStep = buildingStep;
+	}
+
+	public ResourceLocation getBuildingStructureName() {
+		return buildingStructureName;
+	}
+
+	public void setBuildingStructureName(ResourceLocation buildingStructureName) {
+		this.buildingStructureName = buildingStructureName;
+	}
+
+	@Override
+	public void addAdditionalSaveData(CompoundTag p_37870_) {
+		super.addAdditionalSaveData(p_37870_);
+		if (this.buildingStructureName != null) {
+			p_37870_.putString("BuildingName", this.buildingStructureName.toString());
+		}
+		p_37870_.putInt("BuildingStep", this.buildingStep);
+	}
+
+	@Override
+	public void readAdditionalSaveData(CompoundTag p_37862_) {
+		super.readAdditionalSaveData(p_37862_);
+		if (p_37862_.contains("BuildingName")) {
+			this.setBuildingStructureName(ResourceLocation.tryParse(p_37862_.getString("BuildingName")));
+		}
+		if (p_37862_.contains("BuildingStep")) {
+			this.setBuildingStep(p_37862_.getInt("BuildingStep"));
+		}
+	}
+
+	@Override
 	public void tick() {
-		super.tick();	
+		super.tick();
 		if (this.level.isClientSide && this.random.nextBoolean() && !this.isInWaterRainOrBubble()) {
 			Vec3 particlePos = PositionUtils.getOffsetPos(this, -14 / 16.0F, 33 / 16.0F, -12 / 16.0F, this.yBodyRot);
 			this.level.addParticle(ParticleTypes.LARGE_SMOKE, particlePos.x, particlePos.y, particlePos.z, 0, 0.05, 0.0);
