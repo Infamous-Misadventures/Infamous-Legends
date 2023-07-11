@@ -7,6 +7,7 @@ import com.infamous.infamous_legends.init.MemoryModuleTypeInit;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.Vec3i;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
@@ -18,6 +19,8 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
@@ -45,6 +48,7 @@ public class PiglinBuilderBuilding extends Behavior<PiglinBuilder> {
 
     private int step;
     private int tick = 3;
+    private CompoundTag compoundTag;
 
     public PiglinBuilderBuilding(float p_275357_) {
         super(ImmutableMap.of(), 2400);
@@ -128,6 +132,7 @@ public class PiglinBuilderBuilding extends Behavior<PiglinBuilder> {
                 if (isReplaceable(level.getBlockState(origin), level, mob)) {
                     blockState = structureBlockInfo.state;
                     currentBlockPos = origin;
+                    compoundTag = structureBlockInfo.nbt;
                     step += 1;
                 } else {
                     step += 1;
@@ -148,10 +153,21 @@ public class PiglinBuilderBuilding extends Behavior<PiglinBuilder> {
 
                             Block.pushEntitiesUp(level.getBlockState(currentBlockPos), realState, level, currentBlockPos);
                             level.setBlock(currentBlockPos, realState, 3);
+                            if (compoundTag != null) {
+                                BlockEntity blockentity1 = level.getBlockEntity(currentBlockPos);
+                                if (blockentity1 != null) {
+                                    if (blockentity1 instanceof RandomizableContainerBlockEntity) {
+                                        compoundTag.putLong("LootTableSeed", level.random.nextLong());
+                                    }
 
+                                    blockentity1.load(compoundTag);
+                                }
+                            }
                             currentBlockPos = null;
+                            compoundTag = null;
                         } else {
                             currentBlockPos = null;
+                            compoundTag = null;
                         }
                     }
                 }
